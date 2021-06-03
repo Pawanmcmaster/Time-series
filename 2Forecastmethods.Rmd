@@ -1,0 +1,125 @@
+---
+title: "Forecast Methods"
+author: "Pawan Kumar"
+date: "02/06/2021"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Average method
+
+Forecast at time step "h" is average of the previous historic data
+
+$y_{t+h|t}$ = ( $y_1$ + $y_2$ +........$y_t$ ) / t
+
+```{r}
+# mean(y,h) -> y is the time series and h is the forecast horizon
+
+library(fpp2)
+beer_data <- window(ausbeer, start = 1992, end = c(2007,3))
+beer_data[1:20]
+frequency(beer_data) 
+```
+
+| Frequency | Meaning       |
+|-----------|---------------|
+| 12        | Monthly       |
+| 4         | Quarterly     |
+| 2         | Semi annually |
+| 1         | Annual        |
+
+: Frequency table
+
+```{r cars}
+summary(beer_data)
+
+```
+
+## Plot
+
+```{r pressure, echo=FALSE}
+
+autoplot(beer_data) +
+autolayer(meanf(beer_data, h=11),
+series="Mean", PI=FALSE) +
+autolayer(naive(beer_data, h=11),
+series="Naïve", PI=FALSE) +
+autolayer(snaive(beer_data, h=11),
+series="Seasonal naïve", PI=FALSE) +
+ggtitle("Forecasts for quarterly beer production") +
+xlab("Year") + ylab("Megalitres") +
+guides(colour=guide_legend(title="Forecast"))
+```
+
+## Box-Cox Transformation
+
+Usage of BoxCox.lambda() function to choose adequate lambda value:
+
+```{r}
+
+lambda_value <- BoxCox.lambda(elec)
+lambda_value
+
+autoplot(BoxCox(elec,lambda_value))
+```
+
+```{r}
+transformed_series <- BoxCox(elec,lambda_value)
+# Plotting
+autoplot(transformed_series)+
+autolayer(meanf(transformed_series,h=40), series = "Mean", PI = FALSE) +
+autolayer(naive(transformed_series, h = 40), series = "Naive", PI = FALSE) +
+autolayer(snaive(transformed_series,  h = 40), series = "Seasonal", PI = FALSE)+
+ggtitle("Forecasted electricity demand") +
+xlab("Time") +
+ylab("Power-volt") +
+guides(color = guide_legend(title = "Forecast"))
+  
+  
+
+```
+
+Note: Mean and naive forecast make no sense, to an extent the seasonal
+forecast aligns, still it lacks to capture the trend. As the transformed
+series has trend and seasonality.
+
+Importantly, after chosing a transformation, we need to revert it back
+to reflect upon the original data and generate and thus gets its
+forecast value.
+
+```{r}
+
+seasonal_forecast <- snaive(transformed_series, h = 11)
+
+View(seasonal_forecast)
+length(seasonal_forecast[["lower"]])
+
+# lower values
+reverse_transformation <- InvBoxCox(seasonal_forecast[["lower"]][1:22], lambda_value)
+```
+
+## Bias Adjusted Means
+
+```{r}
+View(eggs)
+
+fc1 <- rwf(eggs, h = 50, drift = TRUE)
+fc2 <- rwf(eggs, h = 50, drift = TRUE, biasadj = TRUE)
+
+autoplot(eggs) +
+autolayer(fc1, series = "Simple back transformation") +
+autolayer(fc2, series = "Bias adjusted") +
+ggtitle("Bias adjusted comparison chart") +
+guides(color = guide_legend(title = "Forecast"))
+
+
+
+```
